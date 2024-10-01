@@ -1,4 +1,5 @@
-/target
-/remembered-trapdoor-positions.json
-/login-secrets.json
-/.idea/
+.idea/
+.vscode/
+login-secrets.json
+remembered-trapdoor-positions.json
+target/

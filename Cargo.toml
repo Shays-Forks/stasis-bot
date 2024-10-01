@@ -4,50 +4,42 @@ version = "0.3.0-beta.5"
 edition = "2021"
 authors = ["EnderKill98"]
 
-[profile.dev]
-opt-level = 1
-[profile.dev.package."*"]
-opt-level = 3
-
-[patch."https://github.com/azalea-rs/azalea-viaversion.git"]
-azalea = { git = "https://github.com/EnderKill98/azalea.git", rev = "ca0e5b0b" }
-
 [dependencies]
-# CLI Opt parsing
-clap = { version = "4", features = ["derive"] }
-
-# Async Runtime
-tokio = "1"
-
-# Easy error handling
 anyhow = "1"
-
-# The amazing bot library!
-#azalea = { git = "https://github.com/EnderKill98/azalea.git", rev = "ca0e5b0b", default-features = false }
-azalea = { git = "https://github.com/azalea-rs/azalea.git", rev = "2992fc6b", default-features = false }
-# Make the amazing bot library even more amazing!
-azalea-viaversion = { git = "https://github.com/EnderKill98/azalea-viaversion.git", rev = "62e5aecd" }
-#azalea-viaversion = { path = "../azalea-viaversion" }
-
+azalea = { git = "https://github.com/azalea-rs/azalea.git", default-features = false }
+azalea-viaversion = { git = "https://github.com/azalea-rs/azalea-viaversion" }
+clap = { version = "4", features = ["derive"] }
+once_cell = "1"
 parking_lot = "0.12"
-
-# Logging
+reqwest = { version = "0.12", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = "1"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
-# Serde
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+[features]
+default = ["rustls-tls"]
+native-tls = ["reqwest/native-tls"]
+rustls-tls = ["reqwest/rustls-tls"]
 
-once_cell = "1"
+[profile.dev]
+opt-level = 1
 
-# For OpenAuthMod Plugin
-reqwest = { version = "0.12", default-features = false, features = [
-    "stream",
-    "native-tls-vendored",
-] }
+[profile.dev.package."*"]
+opt-level = 3
 
-#paho-mqtt = { version = "0.12", features = ["vendored-ssl"] }
+# https://github.com/johnthagen/min-sized-rust
+[profile.release]
+strip = true      # Automatically strip symbols from the binary.
+opt-level = "z"   # Optimize for size.
+lto = true
+codegen-units = 1
+panic = "abort"
 
-# Easy command input
-#rustyline = "14"
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# cargo = { level = "warn", priority = -1 }
+missing_errors_doc = "allow"
+multiple_crate_versions = "allow"

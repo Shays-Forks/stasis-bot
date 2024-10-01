@@ -1,4 +1,3 @@
-use crate::{BotState, OPTS};
 use azalea::{
     ecs::query::With,
     entity::{metadata::Player, Position},
@@ -8,35 +7,38 @@ use azalea::{
     GameProfileComponent, Vec3,
 };
 
+use crate::{BotState, ARGS};
+
+#[allow(clippy::too_many_lines)]
 pub fn execute(
     bot: &mut Client,
     bot_state: &BotState,
-    sender: String,
+    sender: &str,
     mut command: String,
-    args: Vec<String>,
+    args: &[String],
 ) -> anyhow::Result<bool> {
     if command.starts_with('!') {
         command.remove(0);
     }
     command = command.to_lowercase();
-    let sender_is_admin = OPTS.admin.iter().any(|a| sender.eq_ignore_ascii_case(a));
+    let sender_is_admin = ARGS.admin.iter().any(|a| sender.eq_ignore_ascii_case(a));
 
     match command.as_str() {
         "help" => {
             let mut commands = vec!["!help", "!about"];
-            if !OPTS.no_stasis {
+            if !ARGS.no_stasis {
                 commands.push("!tp");
             }
             if sender_is_admin {
                 commands.append(&mut vec!["!comehere", "!say", "!stop"]);
-                if OPTS.enable_pos_command {
+                if ARGS.enable_pos_command {
                     commands.push("!pos");
                 }
             }
-            if !OPTS.admin.is_empty() {
+            if !ARGS.admin.is_empty() {
                 commands.push("!admins");
             }
-            commands.sort();
+            commands.sort_unstable();
 
             send_command(
                 bot,
@@ -49,8 +51,7 @@ pub fn execute(
             Ok(true)
         }
         "tp" => {
-            let remembered_trapdoor_positions = bot_state.remembered_trapdoor_positions.lock();
-            if OPTS.no_stasis {
+            if ARGS.no_stasis {
                 send_command(
                     bot,
                     &format!("msg {sender} I'm not allowed to do pearl duties :(..."),
@@ -58,7 +59,7 @@ pub fn execute(
                 return Ok(true);
             }
 
-            if let Some(trapdoor_pos) = remembered_trapdoor_positions.get(&sender) {
+            if let Some(trapdoor_pos) = bot_state.remembered_trapdoor_positions.lock().get(sender) {
                 if bot_state.pathfinding_requested_by.lock().is_some() {
                     send_command(bot, &format!("msg {sender} Please ask again in a bit. I'm currently already going somewhere..."));
                     return Ok(true);
@@ -76,12 +77,12 @@ pub fn execute(
                     pos: azalea::BlockPos::from(*trapdoor_pos),
                     chunk_storage: bot.world().read().chunks.clone(),
                 };
-                if OPTS.no_mining {
+                if ARGS.no_mining {
                     bot.goto_without_mining(goal);
                 } else {
                     bot.goto(goal);
                 }
-                *bot_state.pathfinding_requested_by.lock() = Some(sender.clone());
+                *bot_state.pathfinding_requested_by.lock() = Some(sender.to_owned());
             } else {
                 send_command(
                     bot,
@@ -102,15 +103,16 @@ pub fn execute(
             );
             if let Some(sender_entity) = sender_entity {
                 let position = bot.entity_component::<Position>(sender_entity);
+                #[allow(clippy::cast_possible_truncation)]
                 let goal = BlockPosGoal(azalea::BlockPos {
                     x: position.x.floor() as i32,
                     y: position.y.floor() as i32,
                     z: position.z.floor() as i32,
                 });
-                if OPTS.no_mining {
+                if ARGS.no_mining {
                     bot.goto_without_mining(goal);
                 } else {
-                    bot.goto(goal)
+                    bot.goto(goal);
                 }
                 send_command(
                     bot,
@@ -127,7 +129,7 @@ pub fn execute(
         "admins" => {
             send_command(
                 bot,
-                &format!("msg {sender} Admins: {}", OPTS.admin.join(", ")),
+                &format!("msg {sender} Admins: {}", ARGS.admin.join(", ")),
             );
             Ok(true)
         }
@@ -138,9 +140,9 @@ pub fn execute(
             }
 
             let command_or_chat = args.join(" ");
-            if command_or_chat.starts_with("/") {
+            if let Some(stripped) = command_or_chat.strip_prefix('/') {
                 info!("Sending command: {command_or_chat}");
-                bot.send_command_packet(&format!("{}", &command_or_chat[1..]));
+                bot.send_command_packet(stripped);
             } else {
                 info!("Sending chat message: {command_or_chat}");
                 bot.send_chat_packet(&command_or_chat);
@@ -161,7 +163,7 @@ pub fn execute(
                 send_command(bot, &format!("msg {sender} Sorry, but you need to be specified as an admin to use this command!"));
                 return Ok(true);
             }
-            if !OPTS.enable_pos_command {
+            if !ARGS.enable_pos_command {
                 send_command(bot, &format!("msg {sender} Sorry, but this command was not enabled. The owner needs to add the flag --enable-pos-command in order to do so!"));
                 return Ok(true);
             }
@@ -183,7 +185,7 @@ pub fn execute(
 }
 
 pub fn send_command(bot: &mut Client, command: &str) {
-    if OPTS.quiet {
+    if ARGS.quiet {
         info!("Quiet mode: Supressed sending command: {command}");
     } else {
         info!("Sending command: {command}");
